@@ -1,0 +1,41 @@
+server:
+  port: 8097
+
+spring:
+  application:
+    name: booking-gateway-service
+  config:
+    import: ${configserver.import}
+  cloud:
+    config:
+      import-check.enabled: false
+      fail-fast: false
+
+      request-connect-timeout: 5000
+      request-read-timeout: 5000
+      retry:
+        max-attempts: 6
+        initial-interval: 1000
+        max-interval: 2000
+        multiplier: 1.1
+      label: master
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+
+
+  eureka:
+    instance:
+      hostname: localhost
+    client:
+      register-with-eureka: false
+      fetch-registry: false
+      service-url:
+        defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka
+
+configserver:
+  import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8089}
