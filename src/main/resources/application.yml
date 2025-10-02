@@ -18,7 +18,7 @@ spring:
         initial-interval: 1000
         max-interval: 2000
         multiplier: 1.1
-      label: master
+      label: circuitbreaker
     gateway:
       server:
         webflux:
@@ -26,6 +26,30 @@ spring:
             locator:
               enabled: true
               lower-case-service-id: true
+          routes:
+            - id: booking-service
+              uri: lb://booking-service
+              predicates:
+                - Path=/v1/client/**
+              filters:
+                - name: CircuitBreaker
+                  args:
+                    name: bookingServiceCircuitBreaker
+                    fallbackUri: forward:/fallback
+          httpclient:
+            connect-timeout: 3000
+            response-timeout: 5s
+          default-filters:
+            - name: Retry
+              args:
+                retries: 3
+                methods: GET, POST
+                statuses: BAD_GATEWAY, SERVICE_UNAVAILABLE, GATEWAY_TIMEOUT
+                backoff:
+                  firstBackoff: 300ms
+                  maxBackoff: 3000ms
+                  factor: 2
+                  basedOnPreviousValue: false
 
 
   eureka:
@@ -39,3 +63,18 @@ spring:
 
 configserver:
   import: optional:configserver:${CONFIG_SERVER_URL:http://localhost:8089}
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: time_based
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        permitted-number-of-calls-in-half-open-state: 5
+        wait-duration-in-open-state: 10s
+        slow-call-duration-threshold: 5s
+    instances:
+      bookingServiceCircuitBreaker:
+        base-config: default
